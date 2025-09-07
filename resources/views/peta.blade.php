@@ -7,30 +7,39 @@
 
             <div class="row mb-3">
                 <form id="filterForm" method="GET" action="{{ route('peta') }}">
-                    <div class="col-lg-12 d-flex gap-3 align-items-end">
+                    <div class="col-lg-12 d-flex gap-4 align-items-center flex-wrap">
                         <!-- Dropdown Tahun -->
                         <div style="width: 250px;">
-                            <label for="tahun" class="form-label">Filter Tahun</label>
-                            <select name="tahun" id="tahun" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                            <label for="tahun" class="form-label mb-1">Filter Tahun</label>
+                            <select name="tahun" id="tahun" class="form-select"
+                                style="height: 38px; font-size: 1rem;"
+                                onchange="document.getElementById('filterForm').submit()">
                                 @foreach($tahunList as $y)
                                     <option value="{{ $y }}" {{ $tahun == $y ? 'selected' : '' }}>{{ $y }}</option>
                                 @endforeach
                             </select>
                         </div>
-            
-                        <!-- Dropdown Data -->
-                        <div style="width: 250px;">
-                            <label for="data_type" class="form-label">Pilih Data</label>
-                            <select name="data_type" id="data_type" class="form-select" onchange="document.getElementById('filterForm').submit()">
-                                <option value="hiv" {{ $dataType === 'hiv' ? 'selected' : '' }}>HIV</option>
-                                <option value="rumahsakit" {{ $dataType === 'rumahsakit' ? 'selected' : '' }}>Puskesmas</option>
-                            </select>
+                
+                        <!-- Radio Button: Tampilkan Puskesmas -->
+                        <div>
+                            <label class="form-label d-block mb-1">Tampilkan Puskesmas?</label>
+                            <div class="btn-group" role="group" aria-label="Tampilkan Puskesmas">
+                                <input type="radio" class="btn-check" name="data_type" id="puskesmas_no" value="hiv"
+                                    {{ $dataType === 'hiv' ? 'checked' : '' }}
+                                    onchange="document.getElementById('filterForm').submit()">
+                                <label class="btn btn-outline-primary px-4" for="puskesmas_no">Tidak</label>
+                
+                                <input type="radio" class="btn-check" name="data_type" id="puskesmas_yes" value="rumahsakit"
+                                    {{ $dataType === 'rumahsakit' ? 'checked' : '' }}
+                                    onchange="document.getElementById('filterForm').submit()">
+                                <label class="btn btn-outline-primary px-4" for="puskesmas_yes">Ya</label>
+                            </div>
                         </div>
                     </div>
                 </form>
+                
             </div>
-            
-            
+
             <div class="row">
                 <!-- Peta -->
                 <div class="col-lg-9 mb-4">
@@ -71,6 +80,7 @@
     </div>    
 </div>
 @endsection
+
 
 @push('styles')
 <!-- Leaflet CSS -->
@@ -132,6 +142,42 @@
 
     renderPagination();
 
+    function getFillColor(kasus) {
+    if (kasus > 50) return '#d73027';      // Merah Tua - Sangat Tinggi
+    if (kasus > 25) return '#f46d43';      // Merah Muda - Tinggi
+    if (kasus > 10) return '#fdae61';      // Oranye - Sedang
+    if (kasus > 0)  return '#fee08b';      // Kuning Muda - Rendah
+    return '#d9ef8b';                      // Hijau Lemon - Nol Kasus
+        }
+
+
+
+    // Legend control
+    const legend = L.control({ position: 'bottomright' });
+    legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'info legend');
+    const grades = [0, 1, 11, 26, 51];
+    const colors = ['#d9ef8b', '#fee08b', '#fdae61', '#f46d43', '#d73027'];
+    const labels = [];
+
+    for (let i = 0; i < grades.length; i++) {
+        const from = grades[i];
+        const to = grades[i + 1] ? grades[i + 1] - 1 : '+';
+        labels.push(
+            `<i style="background:${colors[i]}; width:18px; height:18px; display:inline-block; margin-right:5px;"></i> ${from}${to !== '+' ? `–${to}` : '+'}`
+        );
+    }
+
+    div.innerHTML = '<strong>Kasus HIV</strong><br>' + labels.join('<br>');
+    return div;
+        };
+
+
+
+
+
+    legend.addTo(map);
+
     if (dataType === 'hiv') {
         // Load GeoJSON untuk peta HIV
         fetch('/geojson/garut_kecamatan.geojson')
@@ -144,9 +190,7 @@
                         return {
                             color: "#333",
                             weight: 1,
-                            fillColor: kasus > 20 ? "#d73027" :
-                                      kasus > 10 ? "#fc8d59" :
-                                      kasus > 0  ? "#fee08b" : "#d9ef8b",
+                            fillColor: getFillColor(kasus),
                             fillOpacity: 0.7
                         };
                     },
@@ -191,7 +235,7 @@
             }
         });
 
-        // Layer GeoJSON overlay HIV kasus di peta rumah sakit
+        // Overlay layer: GeoJSON dengan data HIV
         const dataKasus = dataHiv.reduce((obj, item) => {
             obj[item.kecamatan.toLowerCase()] = item.total_kasus;
             return obj;
@@ -210,9 +254,7 @@
                         return {
                             color: '#444',
                             weight: 1,
-                            fillColor: kasus > 20 ? '#d73027' :
-                                      kasus > 10 ? '#fc8d59' :
-                                      kasus > 0  ? '#fee08b' : '#d9ef8b',
+                            fillColor: getFillColor(kasus),
                             fillOpacity: 0.6
                         };
                     },
@@ -228,6 +270,7 @@
                 alert('Gagal memuat peta rumah sakit.');
             });
     }
-
 </script>
 @endpush
+
+
